@@ -8,4 +8,3 @@ void printString(uint8_t *s);
 void clearLCD(void);
 void toLine1(void);
 void toLine2(void);
-void Delay(uint32_t nCount);

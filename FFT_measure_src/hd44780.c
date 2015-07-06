@@ -11,7 +11,10 @@
 void strobeEN(void);
 void upNib(uint8_t c);
 void downNib(uint8_t c);
-void Delay(uint32_t nCount);
+void registerDelay(void);
+static void Delay(uint8_t nCount);
+
+volatile uint8_t delay_time = 0;
 
 void lcdInit(void) {
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -23,20 +26,21 @@ void lcdInit(void) {
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_Init(LCD_Port, &GPIO_InitStructure);
 	GPIO_ResetBits(LCD_Port, EN | RS | D4 | D5 | D6 | D7);
-	Delay(0xffff);
+	registerDelay();
+	Delay(5);
 	sendCMD(0x02);
-	Delay(0x3FFFC);  //wait 20ms
+	Delay(20);  //wait 20ms
 	sendCMD(0x28);  //LCD configs
 	sendCMD(0x06);
 	sendCMD(0x01);
 	sendCMD(0x0E);
-	Delay(0xffff);
+	Delay(5);
 }
 
 void strobeEN(void) {
-	Delay(0xffff);
+	Delay(5);
 	GPIO_SetBits(LCD_Port, EN);
-	Delay(0xffff);
+	Delay(5);
 	GPIO_ResetBits(LCD_Port, EN);
 }
 
@@ -118,16 +122,16 @@ void toLine2(void) {
 	sendCMD(0xC0);
 }
 
-/* Private functions ---------------------------------------------------------*/
-/*******************************************************************************
-* Function Name  : Delay
-* Description    : Inserts a delay time.
-* Input          : nCount: specifies the delay time length.
-* Output         : None
-* Return         : None
-* Note					 : ffff=5mS
-*******************************************************************************/
-void Delay(uint32_t nCount)
+void registerDelay(void){
+	if(SysTick_Config(SystemCoreClock/1000)) while(1);
+}
+
+void Delay(uint8_t delay_val)
 {
-  for(; nCount != 0; nCount--);
+	delay_time = delay_val;
+	while(delay_time){}
+}
+
+void SysTickHandler(void){
+	if(delay_time) delay_time--;
 }
