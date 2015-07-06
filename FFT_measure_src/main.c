@@ -1,12 +1,17 @@
-#include "hd44780.h"
-
+#include "stupid_delay.h"
+#include <stm32f10x.h>
+#include <stm32f10x_rcc.h>
+#include <stm32f10x_gpio.h>
 int main(void){
-	int it = 0;
-	lcdInit();
-	clearLCD();
-	printString("TEST TEST\n");
+	uint32_t del = 1000;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	delay_init();
+	GPIOC->CRH=1<<5;
 	while(1){
-		it++;
+		GPIOC->BSRR=1<<25;
+		delay_ms(del);
+		GPIOC->BSRR=1<<9;
+		delay_ms(del);
 	}
 }
 
