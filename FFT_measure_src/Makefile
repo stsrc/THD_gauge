@@ -7,7 +7,7 @@ ASFLAGS = -g
 
 # object files
 
-OBJS=  $(STARTUP) stm32f10x_gpio.o stm32f10x_rcc.o main.o stupid_delay.o
+OBJS=  $(STARTUP) stm32f10x_gpio.o stm32f10x_rcc.o stupid_delay.o hd44780.o main.o
 
 # include common make file
 

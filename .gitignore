@@ -1,4 +1,6 @@
 Library
 *.o
 *.elf
-
+*.ld
+*.d
+*.swp
