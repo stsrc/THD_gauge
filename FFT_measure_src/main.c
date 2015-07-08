@@ -13,14 +13,10 @@ int main(void){
 	LCD_init();
 	delay_ms(del);
 	GPIOC->BSRR = 1<<25;
-	delay_ms(del);
-
 	while(1){
 		GPIOC->BSRR = 1<<9;
-		LCD_send_byte(0b11110000, 1);
 		delay_ms(del);
 		GPIOC->BSRR = 1<<25;
-		LCD_send_byte(0b00001111, 0);
 		delay_ms(del);
 	}
 }
