@@ -1,8 +1,9 @@
 #include "ADC.h"
 #include "stupid_delay.h"
+#define ADC_INTR_NO 18 /*STM32F10x manual, p. 130*/
 void ADC_init(){
 
-	/*PC3 - probe pin */
+	/*PC3 - probe pin, ADC channel = 13 */
 
 	/*enabling clock source for ADC and GPIOC*/
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN | RCC_APB2ENR_IOPCEN;
@@ -10,6 +11,10 @@ void ADC_init(){
 	RCC->CFGR |= RCC_CFGR_ADCPRE_0 | RCC_CFGR_ADCPRE_1;
 	/*reseting PC3 to input - analog mode*/
 	GPIOC->CRL &= ~GPIO_CRL_MODE3;
+	/*enabling end of conv. interrupt*/
+	ADC1->CR1 |= ADC_CR1_EOCIE;
+	NVIC_EnableIRQ((IRQn_Type)ADC_INTR_NO);
+
 	/*ADC continous work*/
 	ADC1->CR2 |= ADC_CR2_CONT;
 	/*Alignment to right*/
@@ -36,4 +41,8 @@ void ADC_init(){
 void ADC_getVal(uint16_t *result){
 	while(!(ADC1->SR & ADC_SR_EOC)); //waiting for end
 	*result = ADC1->DR;
+}
+
+void ADC1_IRQHandler(void){
+	ADC_Result = ADC1->DR;
 }

@@ -4,9 +4,10 @@
 #include "stupid_delay.h"
 #include "hd44780.h"
 #include "ADC.h"
+
+extern volatile uint16_t __IO ADC_Result;
 int main(void){
 	uint32_t del = 500;
-	uint16_t temp = 0;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIOC->CRH=1<<5;
 	GPIOC->BSRR = 1<<9;
@@ -18,10 +19,9 @@ int main(void){
 		GPIOC->BSRR = 1<<9;
 		delay_ms(del);
 		GPIOC->BSRR = 1<<25;
-		ADC_getVal(&temp);
 		LCD_clear();
 		LCD_writeString("RES=");
-		LCD_writeUINT32(temp);
+		LCD_writeUINT32(ADC_Result);
 		delay_ms(del);
 		
 	}
