@@ -10,8 +10,12 @@
 #define MARGIN 2 /*Look to the LCD_send_byte definition*/
 
 #define DELAY 6U /* [ms] */
-#define LCD_x_cnt 8
+#define LCD_x_cnt 16
 #define LCD_y_cnt 2
+
+/*
+ * TODO: INLINES!
+ * */
 
 void LCD_Enable_Strobe(void){
 	GPIO_WriteBit(LCD_port, E, 1);
@@ -64,6 +68,12 @@ void LCD_send_data(uint8_t data, uint32_t delay){
 	delay_ms(delay);
 }
 
+void LCD_clear(){
+	LCD_send_command(0x01, DELAY);
+}
+
+
+
 void LCD_goto(uint8_t x, uint8_t y){
 	uint8_t cmd = 0x80;
 	uint8_t temp = 0;
@@ -91,6 +101,29 @@ void LCD_writeString(char *string){
 	}
 }
 
+void LCD_writeUINT32(uint32_t value){
+	char buf[10];
+	if(value >= 1000000000){
+	       	LCD_writeString("ERR!\0");
+		return;
+	}
+	if(sprintf(buf, "%lu", value) <= 0){
+	       	LCD_writeString("ERR!\0");
+		return;
+	}
+	LCD_writeString(buf);
+}
+
+void LCD_writeFLOAT(float value){
+	char buf[10];
+	if(value >= 1000000000.0) goto print_err;	
+	if(sprintf(buf, "%f", value) <= 0) goto print_err;
+	return;
+	print_err:
+		LCD_writeString("ERR!\0");
+		return;	
+}
+
 void LCD_init(){
 	GPIO_InitTypeDef gpio_struct;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -109,6 +142,5 @@ void LCD_init(){
 	LCD_send_command(0x2F, DELAY); /*Setting 2 line mode*/
 	LCD_send_command(0x04, DELAY); /*Entry mode set*/
 	LCD_send_command(0x01, DELAY); /*clearing DDRAM*/
-	LCD_send_command(0x0C, DELAY); /*display on*/
-	LCD_writeString("Test test\0");	
+	LCD_send_command(0x0C, DELAY); /*display on*/	
 }

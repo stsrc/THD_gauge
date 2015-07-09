@@ -49,10 +49,10 @@ STARTUP= startup_stm32f10x.o system_stm32f10x.o
 
 FULLASSERT = -DUSE_FULL_ASSERT 
 
-LDFLAGS+= -T$(LDSCRIPT) -mthumb -mcpu=cortex-m3 
+LDFLAGS+= -T$(LDSCRIPT) -mthumb -mcpu=cortex-m3
+LDFLAGS+= -specs=nosys.specs #Added by me
 CFLAGS+= -mcpu=cortex-m3 -mthumb
-#My flags
-CFLAGS+= -O0 -Wall -std=gnu99
+CFLAGS+= -O0 -Wall -std=gnu99 #Added by me
 CFLAGS+= -I$(TEMPLATEROOT) -I$(DEVICE) -I$(CORE) -I$(PERIPH)/inc -I.
 CFLAGS+= -D$(PTYPE) -DUSE_STDPERIPH_DRIVER $(FULLASSERT)
 CFLAGS+= -I$(TEMPLATEROOT)/Library/ff9/src -I$(TEMPLATEROOT)/Library
