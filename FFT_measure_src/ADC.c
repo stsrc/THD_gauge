@@ -19,9 +19,9 @@ void ADC_init(){
 	ADC1->CR2 |= ADC_CR2_CONT;
 	/*Alignment to right*/
 	ADC1->CR2 &= ~(ADC_CR2_ALIGN); 
-	/*sample time = 28.5 cycles*/
-	ADC1->SMPR2 &= ~ADC_SMPR2_SMP3_2;
-	ADC1->SMPR2 |= ADC_SMPR2_SMP3_1 | ADC_SMPR2_SMP3_0;
+	/*sample time = 239.5 cycles*/
+	ADC1->SMPR1 |= ADC_SMPR1_SMP13_2;
+	ADC1->SMPR1 |= ADC_SMPR1_SMP13_1 | ADC_SMPR1_SMP13_0;
 	ADC1->SQR1 = 0; //only 1 conversion
 	ADC1->SQR3 = ADC_SQR3_SQ1_3 | ADC_SQR3_SQ1_2 | ADC_SQR3_SQ1_0;
 	/*A/D converter ON*/

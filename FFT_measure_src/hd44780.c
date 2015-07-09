@@ -3,12 +3,11 @@
 #define LCD_port GPIOA
 #define RS GPIO_Pin_0
 #define E GPIO_Pin_1
-#define D4 GPIO_Pin_2
-#define D5 GPIO_Pin_3
-#define D6 GPIO_Pin_4
-#define D7 GPIO_Pin_5
-#define MARGIN 2 /*Look to the LCD_send_byte definition*/
-
+#define D4 GPIO_Pin_8
+#define D5 GPIO_Pin_9
+#define D6 GPIO_Pin_10
+#define D7 GPIO_Pin_11
+#define MARGIN 8 /*Look to the LCD_send_byte definition*/
 #define DELAY 6U /* [ms] */
 #define LCD_x_cnt 16
 #define LCD_y_cnt 2
@@ -30,15 +29,15 @@ void LCD_send_byte(uint8_t data, const uint8_t valRS){
 	uint8_t lower_half = data & 0b00001111;
 	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
 	else GPIO_WriteBit(LCD_port, RS, 0);
-	cmd = (upper_half << MARGIN);
-	cmd |= (((~upper_half) & 0b00001111) << MARGIN) << 16;
+	cmd = (uint32_t)upper_half << MARGIN;
+	cmd |= ((uint32_t)((~upper_half) & 0b00001111) << MARGIN) << 16;
 	/*Above: wicked command, I want to clear D4-7 pins.*/
 	LCD_port->BSRR = cmd;
 	LCD_Enable_Strobe();	
 	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
 	else GPIO_WriteBit(LCD_port, RS, 0);
-	cmd = lower_half << MARGIN;
-	cmd |= (((~lower_half) & 0b00001111) << MARGIN) << 16;
+	cmd = (uint32_t)lower_half << MARGIN;
+	cmd |= ((uint32_t)((~lower_half) & 0b00001111) << MARGIN) << 16;
 	LCD_port->BSRR = cmd;
 	LCD_Enable_Strobe();
 }
@@ -48,8 +47,8 @@ void LCD_send_halfbyte(uint8_t data, const uint8_t valRS){
 	uint8_t lower_half = data & 0b00001111;
 	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
 	else GPIO_WriteBit(LCD_port, RS, 0);
-	cmd = lower_half << MARGIN;
-	cmd |= (((~lower_half) & 0b00001111) << MARGIN ) << 16;
+	cmd = (uint32_t)lower_half << MARGIN;
+	cmd |= ((uint32_t)((~lower_half) & 0b00001111) << MARGIN) << 16;
 	LCD_port->BSRR = cmd;
 	LCD_Enable_Strobe();
 }
@@ -134,9 +133,9 @@ void LCD_init(){
 	GPIO_Init(LCD_port, &gpio_struct);
 	GPIO_ResetBits(LCD_port, RS | E | D4 | D5 | D6 | D7);
 	delay_ms(50);
-	LCD_send_halfbyte(0x03, 100); /*Initiating program reset*/
-	LCD_send_halfbyte(0x03, 100); /*Program reset*/
-	LCD_send_halfbyte(0x03, 100);  /*Program reset*/
+	LCD_send_halfbyte(0x03, 10); /*Initiating program reset*/
+	LCD_send_halfbyte(0x03, 5); /*Program reset*/
+	LCD_send_halfbyte(0x03, 5);  /*Program reset*/
 	LCD_send_halfbyte(0x02, DELAY);  /*Switching to 4 bit mode*/
 	LCD_send_command(0x08, DELAY); /*display off*/
 	LCD_send_command(0x2F, DELAY); /*Setting 2 line mode*/
