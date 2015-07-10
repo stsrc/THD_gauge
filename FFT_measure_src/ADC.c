@@ -34,15 +34,12 @@ void ADC_init(){
 	while(ADC1->CR2 & ADC_CR2_CAL);
 	/*^waiting till end of calib*/
 	/*ADC start*/
-	delay_ms(10);
+	delay_ms(10);	/*TODO*/
 	ADC1->CR2 |= ADC_CR2_ADON;
 }
 
-void ADC_getVal(uint16_t *result){
-	while(!(ADC1->SR & ADC_SR_EOC)); //waiting for end
-	*result = ADC1->DR;
-}
-
 void ADC1_IRQHandler(void){
-	ADC_Result = ADC1->DR;
+	static uint16_t sample_no = 0;
+	ADC_Result[sample_no] = (q15_t)ADC1->DR;
+	sample_no = (sample_no + 1)%FFT_SIZE;
 }
