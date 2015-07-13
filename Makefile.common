@@ -8,7 +8,7 @@ TOOLROOT=/home/konrad/arm_toolchain/gcc-arm-none-eabi-4_9-2015q2/bin
 
 # Library path
 
-LIBROOT=/home/konrad/Programming/eb/LIB/STM32F10x_StdPeriph_Lib_V3.5.0/Libraries
+LIBROOT=/home/konrad/Programming/eb/CMSIS
 
 # Tools
 
@@ -19,55 +19,33 @@ AS=$(TOOLROOT)/arm-none-eabi-as
 
 # Code Paths
 
-DEVICE=$(LIBROOT)/CMSIS/CM3/DeviceSupport/ST/STM32F10x
-CORE=$(LIBROOT)/CMSIS/CM3/CoreSupport
-PERIPH=$(LIBROOT)/STM32F10x_StdPeriph_Driver
-MATH=$(LIBROOT)/CMSIS/CM3/MathSupport
+INCLUDE=$(LIBROOT)/Include
+CORE=$(LIBROOT)/CORE
 
-# Search path for standard files
-
-vpath %.c $(TEMPLATEROOT)
-
-# Search path for perpheral library
+# Search path for core files
 
 vpath %.c $(CORE)
-vpath %.c $(PERIPH)/src
-vpath %.c $(DEVICE)
-
-# Search path for Library
-
-vpath %.c $(TEMPLATEROOT)/Library/ff9/src
-vpath %.c $(TEMPLATEROOT)/Library/ff9/src/option
-vpath %.c $(TEMPLATEROOT)/Library
-
-#Search parh for Math Library
-
-vpath %.c $(MATH)/TransformFunctions
-vpath %.c $(MATH)/ComplexMathFunctions
-vpath %.c $(MATH)/StatisticsFunctions
+vpath %.s $(CORE)
 
 #  Processor specific
-
-PTYPE = STM32F10X_MD_VL 
-LDSCRIPT = $(TEMPLATEROOT)/stm32f100.ld
-STARTUP= startup_stm32f10x.o system_stm32f10x.o 
-MTYPE = ARM_MATH_CM3
+#
+LDSCRIPT=$(CORE)/STM32F100XB_FLASH.ld
+STARTUP=startup_stm32f100xb.o system_stm32f1xx.o 
+PTYPE=STM32F10X_MD_VL
 # Compilation Flags
 
-FULLASSERT = -DUSE_FULL_ASSERT 
-
-LDFLAGS+= -T$(LDSCRIPT) -mthumb -mcpu=cortex-m3
-LDFLAGS+= -specs=nosys.specs #Added by me
+LDFLAGS+= -T$(LDSCRIPT) -mcpu=cortex-m3 -mthumb
+LDFLAGS+= -specs=nosys.specs 
+LDFLAGS+= -Wall -Wl,-gc-sections,-u,main
 CFLAGS+= -mcpu=cortex-m3 -mthumb
-CFLAGS+= -O0 -Wall -std=gnu99 -I$(MATH) -D$(MTYPE) #Added by me
-CFLAGS+= -I$(TEMPLATEROOT) -I$(DEVICE) -I$(CORE) -I$(PERIPH)/inc -I.
-CFLAGS+= -D$(PTYPE) -DUSE_STDPERIPH_DRIVER $(FULLASSERT)
-CFLAGS+= -I$(TEMPLATEROOT)/Library/ff9/src -I$(TEMPLATEROOT)/Library
-
+CFLAGS+= -Os -g3 -Wall -std=gnu99 
+CFLAGS+= -fdata-sections
+CFLAGS+= -I$(CORE) -I$(INCLUDE) -I.
+CFLAGS+= -D$(PTYPE)
 # Build executable (-lm for math lib)
 
 $(ELF) : $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) -lm
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)  $(LDLIBS)  
 
 # compile and generate dependency info
 

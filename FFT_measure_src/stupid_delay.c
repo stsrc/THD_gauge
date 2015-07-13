@@ -1,15 +1,9 @@
 #include "stupid_delay.h"
-volatile uint32_t __IO delay_val;
+uint32_t __IO delay_val;
 
 void delay_init(){
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	if(SysTick_Config(SystemCoreClock / 100000UL)){
-		GPIOC->CRH = 1<<1; //for debug purpose
-		GPIOC->BSRR = 1<<8; 
-		int dummy = 2;
-		while(1){
-			dummy *= 2;
-		}
+		while(1);
 	}
 }
 

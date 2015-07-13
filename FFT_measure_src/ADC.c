@@ -14,7 +14,6 @@ void ADC_init(){
 	/*enabling end of conv. interrupt*/
 	ADC1->CR1 |= ADC_CR1_EOCIE;
 	NVIC_EnableIRQ((IRQn_Type)ADC_INTR_NO);
-
 	/*ADC continous work*/
 	ADC1->CR2 |= ADC_CR2_CONT;
 	/*Alignment to right*/
@@ -39,7 +38,6 @@ void ADC_init(){
 }
 
 void ADC1_IRQHandler(void){
-	static uint16_t sample_no = 0;
-	ADC_Result[sample_no] = (q15_t)ADC1->DR;
-	sample_no = (sample_no + 1)%FFT_SIZE;
+	uint16_t test = 0;
+	test = ADC1->DR;
 }

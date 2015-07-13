@@ -2,12 +2,12 @@ TEMPLATEROOT = ..
 
 # compilation flags for gdb
 
-CFLAGS  = -O0 -g
-ASFLAGS = -g 
+CFLAGS  = -Os -g3
+ASFLAGS = -g3
 
 # object files
 
-OBJS=  $(STARTUP) stm32f10x_gpio.o stm32f10x_rcc.o stupid_delay.o hd44780.o ADC.o DAC.o main.o
+OBJS= stupid_delay.o hd44780.o ADC.o DAC.o main.o $(STARTUP) 
 
 # include common make file
 

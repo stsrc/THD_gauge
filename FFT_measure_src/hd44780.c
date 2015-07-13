@@ -1,25 +1,28 @@
 #include "hd44780.h"
 
 #define LCD_port GPIOA
-#define RS GPIO_Pin_0
-#define E GPIO_Pin_1
-#define D4 GPIO_Pin_8
-#define D5 GPIO_Pin_9
-#define D6 GPIO_Pin_10
-#define D7 GPIO_Pin_11
+#define RS 0x001
+#define E 0x002
+#define D4 0x100
+#define D5 0x200
+#define D6 0x400
+#define D7 0x800
 #define MARGIN 8 /*Look to the LCD_send_byte definition*/
-#define DELAY 6U /* [ms] */
+#define DELAY 10U /* [ms] */
 #define LCD_x_cnt 16
 #define LCD_y_cnt 2
+
+#define GPIO_setBit(PORT, PIN) (PORT->BSRR |= PIN)
+#define GPIO_clearBit(PORT, PIN) (PORT->BSRR |= (PIN << 0x10))
 
 /*
  * TODO: INLINES!
  * */
 
 void LCD_Enable_Strobe(void){
-	GPIO_WriteBit(LCD_port, E, 1);
+	GPIOA->BSRR |= GPIO_BSRR_BS1;
 	delay_us(1);
-	GPIO_WriteBit(LCD_port, E, 0);
+	GPIOA->BSRR |= GPIO_BSRR_BR1;
 	delay_us(1);
 }
 
@@ -27,15 +30,15 @@ void LCD_send_byte(uint8_t data, const uint8_t valRS){
 	uint32_t cmd = 0;
 	uint8_t upper_half = (data & 0b11110000) >> 4;
 	uint8_t lower_half = data & 0b00001111;
-	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
-	else GPIO_WriteBit(LCD_port, RS, 0);
+	if(valRS) GPIOA->BSRR |= GPIO_BSRR_BS0;
+	else GPIOA->BSRR |= GPIO_BSRR_BR0;
 	cmd = (uint32_t)upper_half << MARGIN;
 	cmd |= ((uint32_t)((~upper_half) & 0b00001111) << MARGIN) << 16;
 	/*Above: wicked command, I want to clear D4-7 pins.*/
 	LCD_port->BSRR = cmd;
 	LCD_Enable_Strobe();	
-	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
-	else GPIO_WriteBit(LCD_port, RS, 0);
+	if(valRS) GPIOA->BSRR |= GPIO_BSRR_BS0;
+	else GPIOA->BSRR |= GPIO_BSRR_BR0;
 	cmd = (uint32_t)lower_half << MARGIN;
 	cmd |= ((uint32_t)((~lower_half) & 0b00001111) << MARGIN) << 16;
 	LCD_port->BSRR = cmd;
@@ -45,8 +48,8 @@ void LCD_send_byte(uint8_t data, const uint8_t valRS){
 void LCD_send_halfbyte(uint8_t data, const uint8_t valRS){
 	uint32_t cmd = 0;
 	uint8_t lower_half = data & 0b00001111;
-	if(valRS) GPIO_WriteBit(LCD_port, RS, 1);
-	else GPIO_WriteBit(LCD_port, RS, 0);
+	if(valRS) GPIOA->BSRR |= GPIO_BSRR_BS0;
+	else GPIOA->BSRR |= GPIO_BSRR_BR0;
 	cmd = (uint32_t)lower_half << MARGIN;
 	cmd |= ((uint32_t)((~lower_half) & 0b00001111) << MARGIN) << 16;
 	LCD_port->BSRR = cmd;
@@ -124,14 +127,19 @@ void LCD_writeFLOAT(float value){
 }
 
 void LCD_init(){
-	GPIO_InitTypeDef gpio_struct;
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_StructInit(&gpio_struct);
-	gpio_struct.GPIO_Pin = RS | E | D4 | D5 | D6 | D7;
-	gpio_struct.GPIO_Mode = GPIO_Mode_Out_PP;
-	gpio_struct.GPIO_Speed = GPIO_Speed_10MHz;
-	GPIO_Init(LCD_port, &gpio_struct);
-	GPIO_ResetBits(LCD_port, RS | E | D4 | D5 | D6 | D7);
+	//TODO: THIS IS SO STUPID THAT I CAN'T LOOK ON IT, YUK
+	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
+	LCD_port->CRL |= GPIO_CRL_MODE0_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF0;
+	LCD_port->CRL |= GPIO_CRL_MODE1_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF1;
+	LCD_port->CRH |= GPIO_CRH_MODE8_0;
+	LCD_port->CRH |= GPIO_CRH_MODE9_0;
+	LCD_port->CRH |= GPIO_CRH_MODE10_0;
+	LCD_port->CRH |= GPIO_CRH_MODE11_0;
+	LCD_port->CRH &= ~(GPIO_CRH_CNF8 | GPIO_CRH_CNF9 | GPIO_CRH_CNF10 | GPIO_CRH_CNF11);
+	LCD_port->BSRR |= GPIO_BSRR_BR0 | GPIO_BSRR_BR1 | GPIO_BSRR_BR8 | GPIO_BSRR_BR9 | GPIO_BSRR_BR10 | GPIO_BSRR_BR11;
+
 	delay_ms(50);
 	LCD_send_halfbyte(0x03, 10); /*Initiating program reset*/
 	LCD_send_halfbyte(0x03, 5); /*Program reset*/
