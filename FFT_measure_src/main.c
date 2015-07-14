@@ -13,11 +13,9 @@ void TIM2_init(){
 	/*update request source only from over/under-flow, or DMA*/
 	TIM2->CR1 |= TIM_CR1_URS;
 	/*Prescaler = 240 => Fclock = 1MHz;*/
-	//TIM2->PSC = 240;
-	TIM2->PSC = 54000;
+	TIM2->PSC = 240;
 	/*Overflow after 10us, what is equal to fn = 100kHz*/
-	//TIM2->ARR = 10;
-	TIM2->ARR = 500;
+	TIM2->ARR = 10;
 	/*Update interrupt enabled*/
 	TIM2->DIER |= TIM_DIER_UIE;
 	/*NVIC updating*/
@@ -40,6 +38,7 @@ void TIM3_init(){
 	TIM3->DIER |= TIM_DIER_UIE;
 	/*Counter enabled*/
 	TIM3->CR1 |= TIM_CR1_CEN;
+	TIM3->SMCR &= ~TIM_SMCR_SMS;
 }
 
 void TIM2_IRQHandler(){	
@@ -51,10 +50,41 @@ void TIM2_IRQHandler(){
 
 void TIM3_IRQHandler(){
 	if(TIM3->SR & TIM_SR_UIF){
-		LCD_clear();
-		LCD_writeString("TEST ");
+		static uint8_t logic = 0;
+		if(logic){
+			GPIOC->BSRR |= GPIO_BSRR_BR8;
+			LCD_clear();
+			LCD_writeString("IT WORKS 0!");
+			logic = 0;
+		}
+		else{
+			GPIOC->BSRR |= GPIO_BSRR_BS8;
+			LCD_clear();
+			LCD_writeString("IT WORKS 1!");
+			logic = 1;
+		}
 		TIM3->SR &= ~TIM_SR_UIF;
 	}
+}
+
+void NVIC_prioritySet(){
+	uint32_t encoded_priority;
+	/*3 priority groups*/
+	NVIC_SetPriorityGrouping(0);
+	/*DAC priority*/
+	encoded_priority = NVIC_EncodePriority(0, 0, 0);
+	NVIC_SetPriority((IRQn_Type)TIM2_INTR_NO, encoded_priority);
+	/*ADC priority*/
+	encoded_priority = NVIC_EncodePriority(0, 1, 0);
+	NVIC_SetPriority((IRQn_Type)18, encoded_priority);
+	/*SysTick priority*/
+	encoded_priority = NVIC_EncodePriority(0, 2, 0);
+	NVIC_SetPriority((IRQn_Type)-1, encoded_priority);
+	/*FFT priority*/
+	encoded_priority = NVIC_EncodePriority(0, 3, 0);
+	NVIC_SetPriority((IRQn_Type)TIM3_INTR_NO, encoded_priority);
+
+
 }
 
 
@@ -64,18 +94,15 @@ int main(void){
 	GPIOC->CRH &= ~GPIO_CRH_CNF8;
 	GPIOC->CRH |= GPIO_CRH_MODE8_1;
 	GPIOC->BSRR |= GPIO_BSRR_BR8;
+	NVIC_prioritySet();
 	LCD_init();	
 	ADC_init();
 	DAC_init();
 	TIM2_init();
 	GPIOC->BSRR |= GPIO_BSRR_BS8;
 	TIM3_init();
-	while(1){	
+	while(1){
 		delay_ms(500);
-		GPIOC->BSRR |= GPIO_BSRR_BS8;
-		LCD_writeString("o");
-		delay_ms(500);
-		GPIOC->BSRR |= GPIO_BSRR_BR8;
 	}
 }
 

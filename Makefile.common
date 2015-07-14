@@ -4,7 +4,7 @@ ELF=$(notdir $(CURDIR)).elf
 
 # Tool path
 
-TOOLROOT=/home/konrad/arm_toolchain/gcc-arm-none-eabi-4_9-2015q2/bin
+TOOLROOT=/home/konrad/Programming/eb/arm_toolchain/gcc-arm-none-eabi-4_9-2015q2/bin
 
 # Library path
 
