@@ -77,7 +77,7 @@ void FFT(){
 	LCD_writeString("2kHz = ");
 	LCD_writeUINT32((uint32_t)(output[41]*4096.0f/256.0f));
 	delay_ms(500);
-	for(uint16_t it = 2; it < 256; it++){
+	for(uint16_t it = 1; it <= 128; it++){
 		if(2.0f*output[it]*4096.0f/256.0f > 200.0f){
 			LCD_clear();
 			LCD_writeUINT32(it);

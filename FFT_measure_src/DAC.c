@@ -16,6 +16,5 @@ void DAC_init(){
 }
 
 void DAC_writeData_12b(uint16_t data){
-	if(data > 4095) return;
-	else DAC->DHR12R1 = data;
+	DAC->DHR12R1 = data;
 }
