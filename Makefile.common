@@ -6,7 +6,7 @@ ELF=$(notdir $(CURDIR)).elf
 
 TOOLROOT=/home/konrad/Programming/eb/arm_toolchain/gcc-arm-none-eabi-4_9-2015q2/bin
 
-# Library path
+# Libroot path
 
 LIBROOT=/home/konrad/Programming/eb/CMSIS
 
@@ -17,10 +17,11 @@ LD=$(TOOLROOT)/arm-none-eabi-gcc
 AR=$(TOOLROOT)/arm-none-eabi-ar
 AS=$(TOOLROOT)/arm-none-eabi-as
 
-# Code Paths
+# Library paths
 
 INCLUDE=$(LIBROOT)/Include
 CORE=$(LIBROOT)/CORE
+LIB=$(LIBROOT)/lib
 
 # Search path for core files
 
@@ -32,20 +33,22 @@ vpath %.s $(CORE)
 LDSCRIPT=$(CORE)/STM32F100XB_FLASH.ld
 STARTUP=startup_stm32f100xb.o system_stm32f1xx.o 
 PTYPE=STM32F10X_MD_VL
+MTYPE=ARM_MATH_CM3
 # Compilation Flags
 
 LDFLAGS+= -T$(LDSCRIPT) -mcpu=cortex-m3 -mthumb
-LDFLAGS+= -specs=nosys.specs 
+LDFLAGS+= -D$(MTYPE) -specs=nosys.specs 
+LDFLAGS+= -L$(LIB)
 LDFLAGS+= -Wall -Wl,-gc-sections,-u,main
 CFLAGS+= -mcpu=cortex-m3 -mthumb
 CFLAGS+= -Os -g3 -Wall -std=gnu99 
 CFLAGS+= -fdata-sections
 CFLAGS+= -I$(CORE) -I$(INCLUDE) -I.
-CFLAGS+= -D$(PTYPE)
-# Build executable (-lm for math lib)
+CFLAGS+= -D$(PTYPE) -D$(MTYPE)
+# Build executable
 
 $(ELF) : $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS)  $(LDLIBS)  
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)  $(LDLIBS) -larm_cm3_DSP -lm
 
 # compile and generate dependency info
 

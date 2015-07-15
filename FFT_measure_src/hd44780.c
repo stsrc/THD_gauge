@@ -120,6 +120,7 @@ void LCD_writeFLOAT(float value){
 	char buf[10];
 	if(value >= 1000000000.0) goto print_err;	
 	if(sprintf(buf, "%f", value) <= 0) goto print_err;
+	LCD_writeString(buf);
 	return;
 	print_err:
 		LCD_writeString("ERR!\0");
