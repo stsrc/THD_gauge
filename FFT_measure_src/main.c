@@ -69,7 +69,7 @@ uint16_t cosine(uint16_t amp, uint16_t ph, uint16_t freq, uint16_t off, float32_
 void FFT(){
 	float32_t tab[512];
 	for(uint16_t it = 0; it < 256; it++){
-		tab[2*it] = ((float32_t)ADC_result[it])/4096.0f;
+		tab[2*it] = ((float32_t)glob_cos.cos_val[it])/4096.0f;
 		tab[2*it+1] = 0;
 	}
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, tab, 0, 0);
