@@ -98,7 +98,9 @@ void present_results(){
 			LCD_clear();
 			LCD_writeUINT32(it);
 			LCD_goto(0, 1);
-			LCD_writeUINT32((uint32_t)(output[it]*4096.0f/256.0f));
+			if(it != 128 && it != 0)LCD_writeUINT32((uint32_t)(
+						2.0f*output[it]*4096.0f/256.0f));
+			else LCD_writeUINT32((uint32_t)(output[it]*4096.0f/256.0f));
 			delay_ms(300);
 		}
 	}
@@ -117,7 +119,6 @@ void NVIC_prioritySet(){
 	fft = 0;
 	adc = 1;
 	systick = 2;
-	//systick = 0;
 	/*0 priority groups*/
 	NVIC_SetPriorityGrouping(0);
 	/*ADC priority*/
@@ -157,16 +158,12 @@ uint8_t check_DAC_DMA_errflags(){
 int main(void){
 	delay_init();
 	RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
-	GPIOC->CRH &= ~GPIO_CRH_CNF8;
-	GPIOC->CRH |= GPIO_CRH_MODE8_1;
-	GPIOC->BSRR |= GPIO_BSRR_BR8;
 	NVIC_prioritySet();
 	generate_cos(15000, 250, 1000, 0);
 	LCD_init();	
 	ADC_init();
 	DAC_init();
 	TIM6_init(glob_cos.cnt, glob_cos.cos_val);
-	GPIOC->BSRR |= GPIO_BSRR_BS8;
 	TIM3_init();
 	while(1){
 		present_results();

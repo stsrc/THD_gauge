@@ -8,8 +8,8 @@ void ADC_init(){
 
 	/*enabling clock source for ADC and GPIOC*/
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN | RCC_APB2ENR_IOPCEN;
-	/*setting ADC preslacer to PLCK divided by 8 (24MHz/8!, there is ADC CLK=2 prescaler before!)*/
-	RCC->CFGR |= RCC_CFGR_ADCPRE_0 | RCC_CFGR_ADCPRE_1;
+	/*setting ADC preslacer to PLCK divided by 2 (24MHz/2)*/
+	RCC->CFGR &= RCC_CFGR_ADCPRE;
 	/*reseting PC3 to input - analog mode*/
 	GPIOC->CRL &= ~GPIO_CRL_MODE3;
 	/*enabling end of conv. interrupt*/
