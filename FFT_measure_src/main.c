@@ -25,30 +25,31 @@ float32_t output[256];
 uint8_t __IO results_ready = 0;
 
 
-void TIM2_DMA_configure(uint16_t data_cnt, uint16_t *mem_ptr){
-	DMA1_Channel2->CCR = 0;
+void TIM6_DMA_configure(uint16_t data_cnt, uint16_t *mem_ptr){
+	DMA1_Channel3->CCR = 0;
 	RCC->AHBENR |= RCC_AHBENR_DMA1EN;
-	DMA1_Channel2->CPAR = (uint32_t)((uint32_t*)DAC + 2); 
-	DMA1_Channel2->CMAR = (uint32_t)mem_ptr;
-	DMA1_Channel2->CNDTR = data_cnt; 
-	DMA1_Channel2->CCR |= DMA_CCR_PL;
-	DMA1_Channel2->CCR |= DMA_CCR_DIR;
-	DMA1_Channel2->CCR |= DMA_CCR_CIRC;
-	DMA1_Channel2->CCR |= DMA_CCR_MINC;
-	DMA1_Channel2->CCR |= DMA_CCR_MSIZE_0;
-	DMA1_Channel2->CCR |= DMA_CCR_PSIZE_1;
-	DMA1_Channel2->CCR |= DMA_CCR_EN;	
+	DMA1_Channel3->CPAR = (uint32_t)((uint32_t*)DAC + 2); 
+	DMA1_Channel3->CMAR = (uint32_t)mem_ptr;
+	DMA1_Channel3->CNDTR = data_cnt; 
+	DMA1_Channel3->CCR |= DMA_CCR_PL;
+	DMA1_Channel3->CCR |= DMA_CCR_DIR;
+	DMA1_Channel3->CCR |= DMA_CCR_CIRC;
+	DMA1_Channel3->CCR |= DMA_CCR_MINC;
+	DMA1_Channel3->CCR |= DMA_CCR_MSIZE_0;
+	DMA1_Channel3->CCR |= DMA_CCR_PSIZE_1;
+	AFIO->MAPR2 |= AFIO_MAPR2_TIM67_DAC_DMA_REMAP;
+	DMA1_Channel3->CCR |= DMA_CCR_EN;	
 }
 
 /*DAC timer*/
-void TIM2_init(uint16_t cnt, uint16_t *ptr){
-	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-	TIM2->CR1 |= TIM_CR1_URS;
-	TIM2->DIER |= TIM_DIER_UDE;
-	TIM2->PSC = 11;
-	TIM2->ARR = 19;
-	TIM2->CR1 |= TIM_CR1_CEN;
-	TIM2_DMA_configure(cnt, ptr);
+void TIM6_init(uint16_t data_cnt, uint16_t *mem_ptr){
+	RCC->APB1ENR |= RCC_APB1ENR_TIM6EN;
+	TIM6->CR1 |= TIM_CR1_URS;
+	TIM6->CR2 |= TIM_CR2_MMS_1;
+	TIM6->PSC = 15;
+	TIM6->ARR = 14;
+	TIM6->CR1 |= TIM_CR1_CEN;
+	TIM6_DMA_configure(data_cnt, mem_ptr);
 }
 
 /*FFT perform timer*/
@@ -160,11 +161,11 @@ int main(void){
 	GPIOC->CRH |= GPIO_CRH_MODE8_1;
 	GPIOC->BSRR |= GPIO_BSRR_BR8;
 	NVIC_prioritySet();
-	generate_cos(3000, 250, 1000, 0);
+	generate_cos(15000, 250, 1000, 0);
 	LCD_init();	
 	ADC_init();
 	DAC_init();
-	TIM2_init(glob_cos.cnt, glob_cos.cos_val);
+	TIM6_init(glob_cos.cnt, glob_cos.cos_val);
 	GPIOC->BSRR |= GPIO_BSRR_BS8;
 	TIM3_init();
 	while(1){
