@@ -13,30 +13,42 @@
 #define F_DAC 100000U
 
 extern __IO uint16_t ADC_result[256];
+
 struct cos_tab{
 	uint16_t *cos_val;
 	uint16_t it;
 	uint16_t cnt;
 };
+
 struct cos_tab glob_cos = {NULL, 0, 0};
 float32_t output[256];
 uint8_t __IO results_ready = 0;
 
+
+void TIM2_DMA_configure(uint16_t data_cnt, uint16_t *mem_ptr){
+	DMA1_Channel2->CCR = 0;
+	RCC->AHBENR |= RCC_AHBENR_DMA1EN;
+	DMA1_Channel2->CPAR = (uint32_t)((uint32_t*)DAC + 2); 
+	DMA1_Channel2->CMAR = (uint32_t)mem_ptr;
+	DMA1_Channel2->CNDTR = data_cnt; 
+	DMA1_Channel2->CCR |= DMA_CCR_PL;
+	DMA1_Channel2->CCR |= DMA_CCR_DIR;
+	DMA1_Channel2->CCR |= DMA_CCR_CIRC;
+	DMA1_Channel2->CCR |= DMA_CCR_MINC;
+	DMA1_Channel2->CCR |= DMA_CCR_MSIZE_0;
+	DMA1_Channel2->CCR |= DMA_CCR_PSIZE_1;
+	DMA1_Channel2->CCR |= DMA_CCR_EN;	
+}
+
 /*DAC timer*/
-void TIM2_init(){
+void TIM2_init(uint16_t cnt, uint16_t *ptr){
 	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-	/*update request source only from over/under-flow, or DMA*/
 	TIM2->CR1 |= TIM_CR1_URS;
-	/*Prescaler = 24 => Fclock = 1MHz;*/
-	TIM2->PSC = 24;
-	/*Overflow after 10us, what is equal to fn = 100kHz*/
-	TIM2->ARR = 10;
-	/*Update interrupt enabled*/
-	TIM2->DIER |= TIM_DIER_UIE;
-	/*NVIC updating*/
-	NVIC_EnableIRQ((IRQn_Type)TIM2_INTR_NO);
-	/*Counter enabled*/
+	TIM2->DIER |= TIM_DIER_UDE;
+	TIM2->PSC = 11;
+	TIM2->ARR = 19;
 	TIM2->CR1 |= TIM_CR1_CEN;
+	TIM2_DMA_configure(cnt, ptr);
 }
 
 /*FFT perform timer*/
@@ -55,7 +67,6 @@ void TIM3_init(){
 	TIM3->DIER |= TIM_DIER_UIE;
 	/*Counter enabled*/
 	TIM3->CR1 |= TIM_CR1_CEN;
-	TIM3->SMCR &= ~TIM_SMCR_SMS;
 }
 
 uint16_t cosine(uint16_t amp, uint16_t ph, uint16_t freq, uint16_t off, float32_t t){
@@ -69,10 +80,10 @@ uint16_t cosine(uint16_t amp, uint16_t ph, uint16_t freq, uint16_t off, float32_
 void FFT(){
 	float32_t tab[512];
 	for(uint16_t it = 0; it < 256; it++){
-		tab[2*it] = ((float32_t)glob_cos.cos_val[it])/4096.0f;
+		tab[2*it] = ((float32_t)(ADC_result[it]))/4096.0f;
 		tab[2*it+1] = 0;
 	}
-	arm_cfft_f32(&arm_cfft_sR_f32_len256, tab, 0, 0);
+	arm_cfft_f32(&arm_cfft_sR_f32_len256, tab, 0, 1);
 	arm_cmplx_mag_f32(tab, output, 256);
 	results_ready = 1;
 }
@@ -80,24 +91,18 @@ void FFT(){
 void present_results(){
 	if(!results_ready) return;
 	results_ready = 0;
-	for(uint16_t it = 0; it < 256; it++){
-		if(2.0f*output[it]*4096.0f/256.0f > 200.0f){
+	LCD_clear();
+	for(uint16_t it = 0; it < 128; it++){
+		if(2.0f*output[it]*4096.0f/256.0f > 50.0f){
 			LCD_clear();
 			LCD_writeUINT32(it);
 			LCD_goto(0, 1);
-			LCD_writeUINT32((uint32_t)(2.0f*output[it]*4096.0f/256.0f));
+			LCD_writeUINT32((uint32_t)(output[it]*4096.0f/256.0f));
 			delay_ms(300);
 		}
 	}
 }
 
-void TIM2_IRQHandler(){
-	if(TIM2->SR & TIM_SR_UIF){
-		DAC_writeData_12b(glob_cos.cos_val[glob_cos.it]);
-		glob_cos.it = (glob_cos.it + 1)%glob_cos.cnt;
-		TIM2->SR &= ~TIM_SR_UIF;
-	}
-}
 void TIM3_IRQHandler(){
 	if(TIM3->SR & TIM_SR_UIF){
 		FFT();
@@ -107,16 +112,13 @@ void TIM3_IRQHandler(){
 
 void NVIC_prioritySet(){
 	uint32_t encoded_priority;
-	uint32_t dac, adc, systick, fft;
-	fft = 1;
-	dac = 0;
-	adc = 2;
-	systick = 3;
-	/*3 priority groups*/
+	uint32_t adc, systick, fft;
+	fft = 0;
+	adc = 1;
+	systick = 2;
+	//systick = 0;
+	/*0 priority groups*/
 	NVIC_SetPriorityGrouping(0);
-	/*DAC priority*/
-	encoded_priority = NVIC_EncodePriority(0, dac, 0);
-	NVIC_SetPriority((IRQn_Type)TIM2_INTR_NO, encoded_priority);
 	/*ADC priority*/
 	encoded_priority = NVIC_EncodePriority(0, adc, 0);
 	NVIC_SetPriority((IRQn_Type)18, encoded_priority);
@@ -138,6 +140,19 @@ void generate_cos(uint16_t freq, uint16_t amplitude, uint16_t offset, uint16_t p
 	}
 }
 
+uint8_t check_DAC_DMA_errflags(){
+	/*if(DAC->SR & DAC_SR_DMAUDR1){
+		LCD_clear();
+		LCD_writeString("DMA undrr.");
+		return 1;
+	}*/
+	if(DMA1->ISR & DMA_ISR_TEIF3){
+		LCD_clear();
+		LCD_writeString("DMA err.");
+		return 1;
+	}
+	return 0;
+}
 int main(void){
 	delay_init();
 	RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
@@ -145,15 +160,16 @@ int main(void){
 	GPIOC->CRH |= GPIO_CRH_MODE8_1;
 	GPIOC->BSRR |= GPIO_BSRR_BR8;
 	NVIC_prioritySet();
+	generate_cos(3000, 250, 1000, 0);
 	LCD_init();	
 	ADC_init();
 	DAC_init();
-	generate_cos(1000, 250, 2000, 0);
-	TIM2_init();
+	TIM2_init(glob_cos.cnt, glob_cos.cos_val);
 	GPIOC->BSRR |= GPIO_BSRR_BS8;
 	TIM3_init();
 	while(1){
 		present_results();
+		if(check_DAC_DMA_errflags())while(1);
 	}
 	if(glob_cos.cos_val != NULL) free(glob_cos.cos_val);
 }
