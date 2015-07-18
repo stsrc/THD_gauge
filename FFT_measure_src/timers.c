@@ -67,9 +67,9 @@ void TIM3_init(){
 void NVIC_prioritySet(){
 	uint32_t encoded_priority;
 	uint32_t adc, systick, fft;
-	fft = 0;
-	adc = 1;
-	systick = 2;
+	fft = 1;
+	adc = 2;
+	systick = 0;
 	/*0 priority groups*/
 	NVIC_SetPriorityGrouping(0);
 	/*ADC priority*/

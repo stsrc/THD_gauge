@@ -105,32 +105,30 @@ void LCD_writeString(char *string){
 
 void LCD_writeUINT32(uint32_t value){
 	char buf[10];
-	if(value >= 1000000000) goto print_err;
-	if(sprintf(buf, "%lu", value) <= 0) goto print_err;
-	LCD_writeString(buf);
-	return;
-
-	print_err:
-		LCD_writeString("ERR!\0");
+	if(value >= 1000000000){
+	       	LCD_writeString("ERR!\0");
 		return;
+	}
+	if(sprintf(buf, "%lu", value) <= 0){
+	       	LCD_writeString("ERR!\0");
+		return;
+	}
+	LCD_writeString(buf);
 }
-/*TODO: solve issue with sprintf & float*/
+
 void LCD_writeFLOAT(float value){
-	LCD_writeString("FLOAT DOESNT WORK");
-	return;
 	char buf[10];
-	if(value >= 1000000000.0f) goto print_err;	
-	if(sprintf(buf, "%8.2f", 666.6f) <= 0) goto print_err;
+	if(value >= 1000000000.0) goto print_err;	
+	if(sprintf(buf, "%f", value) <= 0) goto print_err;
 	LCD_writeString(buf);
 	return;
-
 	print_err:
 		LCD_writeString("ERR!\0");
 		return;	
 }
 
 void LCD_init(){
-	//TODO: THIS IS SO STUPID THAT I CAN'T EVEN LOOK ON IT, YUK
+	//TODO: THIS IS SO STUPID THAT I CAN'T LOOK ON IT, YUK
 	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
 	LCD_port->CRL |= GPIO_CRL_MODE0_0;
 	LCD_port->CRL &= ~GPIO_CRL_CNF0;
@@ -153,4 +151,6 @@ void LCD_init(){
 	LCD_send_command(0x04, DELAY); /*Entry mode set*/
 	LCD_send_command(0x01, DELAY); /*clearing DDRAM*/
 	LCD_send_command(0x0C, DELAY); /*display on*/	
+	LCD_writeString("TEST");
+	delay_ms(1000);
 }

@@ -7,13 +7,16 @@
 #include "DAC.h"
 #include "timers.h"
 #include <arm_math.h>
+#include <math.h>
 #include <arm_const_structs.h>
-#define TIM2_INTR_NO 28
-#define TIM3_INTR_NO 29
+
 
 #define F_DAC 100000U
 #define F_ADC 10000.0f
-extern __IO uint16_t ADC_result[256];
+
+#define FFT_SIZE 256 //DANGER, you should also change const struct in FFT();
+
+extern __IO uint16_t ADC_result[FFT_SIZE];
 
 struct cos_tab{
 	uint16_t *cos_val;
@@ -22,7 +25,7 @@ struct cos_tab{
 };
 
 struct cos_tab glob_cos = {NULL, 0, 0};
-float32_t output[256];
+float32_t output[FFT_SIZE];
 uint8_t __IO results_ready = 0;
 
 
@@ -37,36 +40,72 @@ uint16_t cosine(uint16_t amp, uint16_t ph, uint16_t freq, uint16_t off, float32_
 
 void FFT(){
 	float32_t tab[512];
-	for(uint16_t it = 0; it < 256; it++){
+	for(uint16_t it = 0; it < FFT_SIZE; it++){
 		tab[2*it] = ((float32_t)(ADC_result[it]))/4096.0f;
 		tab[2*it+1] = 0;
 	}
 	arm_cfft_f32(&arm_cfft_sR_f32_len256, tab, 0, 1);
-	arm_cmplx_mag_f32(tab, output, 256);
+	arm_cmplx_mag_f32(tab, output, FFT_SIZE);
 	results_ready = 1;
 }
 
+uint32_t get_max_bar(float32_t *tab, uint32_t FFT_size){
+	float32_t temp[FFT_size/2 + 1];
+	float32_t max_val;
+	uint32_t bin_no;
+	for(uint32_t it = 0; it <= FFT_size/2; it++){
+		temp[it] = tab[it];
+	}
+	temp[0] = 0;
+	arm_max_f32(temp, FFT_size/2 + 1, &max_val, &bin_no);
+	return bin_no;
+}	
+
+float32_t calculate_THD(float32_t *tab, uint32_t FFT_size, uint32_t fundamental_it){
+	float32_t *temp;
+	float32_t rt;
+	temp = malloc(sizeof(float32_t)*(FFT_size/2)/fundamental_it);
+	for(uint32_t it = 2; it*fundamental_it <= FFT_size/2; it++){
+		temp[it - 2] = tab[it*fundamental_it];
+	}
+	arm_rms_f32(temp, FFT_size/2/fundamental_it, &rt);
+	free(temp);
+	return rt/tab[fundamental_it];
+}
+
+float32_t calculate_frequency(uint32_t tab_no, uint32_t FFT_size, uint32_t ADC_freq){
+	float32_t rt = (float32_t)ADC_freq/2.0f;
+	rt = rt/((float32_t)FFT_size / 2.0f);
+	rt = rt*(float32_t)tab_no;
+	return rt;
+}
+
+float32_t calculate_dB(float32_t val, float32_t fft_size){
+	return log10f(val/fft_size);
+}
+
 void present_results(){
+	float32_t THD;
+	uint32_t fundamental_it, frequency;
 	if(!results_ready) return;
 	results_ready = 0;
+	fundamental_it = get_max_bar(output, FFT_SIZE);
+	THD = calculate_THD(output, FFT_SIZE, fundamental_it);
+	frequency = (uint32_t)calculate_frequency(fundamental_it, FFT_SIZE, F_ADC);
 	LCD_clear();
-	for(uint16_t it = 0; it < 128; it++){
-		if(2.0f*output[it]*4096.0f/256.0f > 50.0f){
-			LCD_clear();
-			LCD_writeUINT32((uint32_t)(0.5f + (float32_t)F_ADC/2.0f/128.0f*(float32_t)it));
-			LCD_writeString("Hz");
-			LCD_goto(0, 1);
-			if(it != 128 && it != 0)LCD_writeUINT32((uint32_t)(
-						2.0f*output[it]*4096.0f/256.0f));
-			else LCD_writeUINT32((uint32_t)(output[it]*4096.0f/256.0f));
-			delay_ms(300);
-		}
-	}
+	LCD_writeString("THD = ");
+	LCD_writeFLOAT(THD);
+	LCD_goto(0, 1);
+	LCD_writeUINT32(frequency);
+	LCD_writeString("Hz: ");
+	LCD_writeFLOAT(calculate_dB(output[fundamental_it], (float32_t)FFT_SIZE));
+	LCD_writeString("dB");
 }
 
 void TIM2_IRQHandler(){
 	if(TIM2->SR & TIM_SR_UIF){
 		FFT();
+		present_results();
 		TIM2->SR &= ~TIM_SR_UIF;
 	}
 }
@@ -83,11 +122,11 @@ void generate_cos(uint16_t freq, uint16_t amplitude, uint16_t offset, uint16_t p
 }
 
 uint8_t check_DAC_DMA_errflags(){
-	/*if(DAC->SR & DAC_SR_DMAUDR1){
+	if(DAC->SR & DAC_SR_DMAUDR1){
 		LCD_clear();
 		LCD_writeString("DMA undrr.");
 		return 1;
-	}*/
+	}
 	if(DMA1->ISR & DMA_ISR_TEIF3){
 		LCD_clear();
 		LCD_writeString("DMA err.");
@@ -96,19 +135,17 @@ uint8_t check_DAC_DMA_errflags(){
 	return 0;
 }
 int main(void){
-	delay_init();
-	RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
-	NVIC_prioritySet();
-	generate_cos(2500, 250, 1000, 0);
 	LCD_init();	
+	generate_cos(4759, 250, 1000, 0);
+	NVIC_prioritySet();
+	delay_init();	
 	ADC_init();
 	DAC_init();
 	TIM6_init(glob_cos.cnt, glob_cos.cos_val);
 	TIM2_init();
 	TIM3_init();
 	while(1){
-		present_results();
-		if(check_DAC_DMA_errflags())while(1);
+		if(check_DAC_DMA_errflags()) while(1);
 	}
 	if(glob_cos.cos_val != NULL) free(glob_cos.cos_val);
 }
