@@ -88,7 +88,6 @@ void present_results(){
 	float32_t THD;
 	uint32_t fundamental_it, frequency;
 	if(!results_ready) return;
-	results_ready = 0;
 	fundamental_it = get_max_bar(output, FFT_SIZE);
 	THD = calculate_THD(output, FFT_SIZE, fundamental_it);
 	frequency = (uint32_t)calculate_frequency(fundamental_it, FFT_SIZE, F_ADC);
@@ -100,12 +99,12 @@ void present_results(){
 	LCD_writeString("Hz: ");
 	LCD_writeFLOAT(calculate_dB(output[fundamental_it], (float32_t)FFT_SIZE));
 	LCD_writeString("dB");
+	results_ready = 0;
 }
 
 void TIM2_IRQHandler(){
 	if(TIM2->SR & TIM_SR_UIF){
-		FFT();
-		present_results();
+		if(!results_ready) FFT();
 		TIM2->SR &= ~TIM_SR_UIF;
 	}
 }
@@ -135,16 +134,17 @@ uint8_t check_DAC_DMA_errflags(){
 	return 0;
 }
 int main(void){
-	LCD_init();	
-	generate_cos(4759, 250, 1000, 0);
 	NVIC_prioritySet();
 	delay_init();	
+	LCD_init();	
+	generate_cos(4759, 250, 1000, 0);
 	ADC_init();
 	DAC_init();
 	TIM6_init(glob_cos.cnt, glob_cos.cos_val);
 	TIM2_init();
 	TIM3_init();
 	while(1){
+		present_results();
 		if(check_DAC_DMA_errflags()) while(1);
 	}
 	if(glob_cos.cos_val != NULL) free(glob_cos.cos_val);

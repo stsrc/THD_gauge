@@ -4,6 +4,7 @@
 #include "stupid_delay.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 void LCD_init();
 void LCD_goto(uint8_t x, uint8_t y);
 /* CAUTION: string must be NULL terminated */

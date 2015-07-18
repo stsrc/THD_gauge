@@ -19,11 +19,22 @@
  * TODO: INLINES!
  * */
 
+void LCD_setToWrite();
+void LCD_setToRead();
+
 void LCD_Enable_Strobe(void){
-	GPIOA->BSRR |= GPIO_BSRR_BS1;
+	GPIO_setBit(LCD_port, E);
 	delay_us(1);
-	GPIOA->BSRR |= GPIO_BSRR_BR1;
+	GPIO_clearBit(LCD_port, E);
 	delay_us(1);
+}
+
+void LCD_wait(){
+	LCD_setToRead();
+	GPIO_setBit(LCD_port, E);
+	while(LCD_port->IDR & GPIO_IDR_IDR11);
+	GPIO_clearBit(LCD_port, E);
+	LCD_setToWrite();
 }
 
 void LCD_send_byte(uint8_t data, const uint8_t valRS){
@@ -67,7 +78,8 @@ void LCD_send_init_command(uint8_t command, uint32_t delay){
 }
 void LCD_send_data(uint8_t data, uint32_t delay){
 	LCD_send_byte(data, 1);
-	delay_ms(delay);
+	//delay_ms(delay);
+	LCD_wait();
 }
 
 void LCD_clear(){
@@ -118,8 +130,12 @@ void LCD_writeUINT32(uint32_t value){
 
 void LCD_writeFLOAT(float value){
 	char buf[10];
+	int32_t d1, d2;
 	if(value >= 1000000000.0) goto print_err;	
-	if(sprintf(buf, "%f", value) <= 0) goto print_err;
+	//if(sprintf(buf, "%.3f", value) <= 0) goto print_err;
+	d1 = (int32_t)value;
+	d2 = abs((int32_t)((value - d1)*1000.0f));
+	if(sprintf(buf, "%ld.%ld", d1, d2) <= 0) goto print_err;
 	LCD_writeString(buf);
 	return;
 	print_err:
@@ -127,30 +143,48 @@ void LCD_writeFLOAT(float value){
 		return;	
 }
 
-void LCD_init(){
-	//TODO: THIS IS SO STUPID THAT I CAN'T LOOK ON IT, YUK
-	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
+void LCD_setToRead(){
 	LCD_port->CRL |= GPIO_CRL_MODE0_0;
 	LCD_port->CRL &= ~GPIO_CRL_CNF0;
 	LCD_port->CRL |= GPIO_CRL_MODE1_0;
 	LCD_port->CRL &= ~GPIO_CRL_CNF1;
+	LCD_port->CRL |= GPIO_CRL_MODE2_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF2;
+	LCD_port->CRH &= ~GPIO_CRH_MODE8;
+	LCD_port->CRH &= ~GPIO_CRH_MODE9;
+	LCD_port->CRH &= ~GPIO_CRH_MODE10;
+	LCD_port->CRH &= ~GPIO_CRH_MODE11;
+	LCD_port->CRH &= ~(GPIO_CRH_CNF8 | GPIO_CRH_CNF9 | GPIO_CRH_CNF10 | GPIO_CRH_CNF11);
+	LCD_port->CRH |= GPIO_CRH_CNF8_1 | GPIO_CRH_CNF9_1 | GPIO_CRH_CNF10_1 | GPIO_CRH_CNF11_0;
+	LCD_port->BSRR |= GPIO_BSRR_BR0 | GPIO_BSRR_BR1 | GPIO_BSRR_BR8 | GPIO_BSRR_BR9 | GPIO_BSRR_BR10 | GPIO_BSRR_BS11;
+	LCD_port->BSRR |= GPIO_BSRR_BS2;
+}
+
+void LCD_setToWrite(){
+	LCD_port->CRL |= GPIO_CRL_MODE0_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF0;
+	LCD_port->CRL |= GPIO_CRL_MODE1_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF1;
+	LCD_port->CRL |= GPIO_CRL_MODE2_0;
+	LCD_port->CRL &= ~GPIO_CRL_CNF2;
 	LCD_port->CRH |= GPIO_CRH_MODE8_0;
 	LCD_port->CRH |= GPIO_CRH_MODE9_0;
 	LCD_port->CRH |= GPIO_CRH_MODE10_0;
 	LCD_port->CRH |= GPIO_CRH_MODE11_0;
 	LCD_port->CRH &= ~(GPIO_CRH_CNF8 | GPIO_CRH_CNF9 | GPIO_CRH_CNF10 | GPIO_CRH_CNF11);
-	LCD_port->BSRR |= GPIO_BSRR_BR0 | GPIO_BSRR_BR1 | GPIO_BSRR_BR8 | GPIO_BSRR_BR9 | GPIO_BSRR_BR10 | GPIO_BSRR_BR11;
-
+	LCD_port->BSRR |= GPIO_BSRR_BR0 | GPIO_BSRR_BR1 | GPIO_BSRR_BR2 | GPIO_BSRR_BR8 | GPIO_BSRR_BR9 | GPIO_BSRR_BR10 | GPIO_BSRR_BR11;
+}
+void LCD_init(){
+	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
+	LCD_setToWrite();
 	delay_ms(50);
-	LCD_send_halfbyte(0x03, 10); /*Initiating program reset*/
-	LCD_send_halfbyte(0x03, 5); /*Program reset*/
-	LCD_send_halfbyte(0x03, 5);  /*Program reset*/
-	LCD_send_halfbyte(0x02, DELAY);  /*Switching to 4 bit mode*/
+	LCD_send_init_command(0x03, 10); /*Initiating program reset*/
+	LCD_send_init_command(0x03, 5); /*Program reset*/
+	LCD_send_init_command(0x03, 5);  /*Program reset*/
+	LCD_send_init_command(0x02, DELAY);  /*Switching to 4 bit mode*/
 	LCD_send_command(0x08, DELAY); /*display off*/
 	LCD_send_command(0x2F, DELAY); /*Setting 2 line mode*/
 	LCD_send_command(0x04, DELAY); /*Entry mode set*/
 	LCD_send_command(0x01, DELAY); /*clearing DDRAM*/
 	LCD_send_command(0x0C, DELAY); /*display on*/	
-	LCD_writeString("TEST");
-	delay_ms(1000);
 }
