@@ -5,13 +5,14 @@
 #include "hd44780.h"
 #include "ADC.h"
 #include "DAC.h"
+#include "timers.h"
 #include <arm_math.h>
 #include <arm_const_structs.h>
 #define TIM2_INTR_NO 28
 #define TIM3_INTR_NO 29
 
 #define F_DAC 100000U
-
+#define F_ADC 10000.0f
 extern __IO uint16_t ADC_result[256];
 
 struct cos_tab{
@@ -25,50 +26,6 @@ float32_t output[256];
 uint8_t __IO results_ready = 0;
 
 
-void TIM6_DMA_configure(uint16_t data_cnt, uint16_t *mem_ptr){
-	DMA1_Channel3->CCR = 0;
-	RCC->AHBENR |= RCC_AHBENR_DMA1EN;
-	DMA1_Channel3->CPAR = (uint32_t)((uint32_t*)DAC + 2); 
-	DMA1_Channel3->CMAR = (uint32_t)mem_ptr;
-	DMA1_Channel3->CNDTR = data_cnt; 
-	DMA1_Channel3->CCR |= DMA_CCR_PL;
-	DMA1_Channel3->CCR |= DMA_CCR_DIR;
-	DMA1_Channel3->CCR |= DMA_CCR_CIRC;
-	DMA1_Channel3->CCR |= DMA_CCR_MINC;
-	DMA1_Channel3->CCR |= DMA_CCR_MSIZE_0;
-	DMA1_Channel3->CCR |= DMA_CCR_PSIZE_1;
-	AFIO->MAPR2 |= AFIO_MAPR2_TIM67_DAC_DMA_REMAP;
-	DMA1_Channel3->CCR |= DMA_CCR_EN;	
-}
-
-/*DAC timer*/
-void TIM6_init(uint16_t data_cnt, uint16_t *mem_ptr){
-	RCC->APB1ENR |= RCC_APB1ENR_TIM6EN;
-	TIM6->CR1 |= TIM_CR1_URS;
-	TIM6->CR2 |= TIM_CR2_MMS_1;
-	TIM6->PSC = 15;
-	TIM6->ARR = 14;
-	TIM6->CR1 |= TIM_CR1_CEN;
-	TIM6_DMA_configure(data_cnt, mem_ptr);
-}
-
-/*FFT perform timer*/
-void TIM3_init(){
-	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
-	/*update request source only from over/under-flow, or DMA*/
-	TIM3->CR1 |= TIM_CR1_URS;
-	/*Prescaler = 54000 => Fclock = 500Hz;*/
-	TIM3->PSC = 54000;
-	/*Overflow after 1s*/
-	//TIM3->ARR = 500;
-	TIM3->ARR = 1500;
-	/*NVIC updating*/
-	NVIC_EnableIRQ((IRQn_Type)TIM3_INTR_NO);
-	/*Update interrupt enabled*/
-	TIM3->DIER |= TIM_DIER_UIE;
-	/*Counter enabled*/
-	TIM3->CR1 |= TIM_CR1_CEN;
-}
 
 uint16_t cosine(uint16_t amp, uint16_t ph, uint16_t freq, uint16_t off, float32_t t){
 	float32_t theta = 2.0f*PI*(float32_t)freq*t + (float32_t)ph;
@@ -96,7 +53,8 @@ void present_results(){
 	for(uint16_t it = 0; it < 128; it++){
 		if(2.0f*output[it]*4096.0f/256.0f > 50.0f){
 			LCD_clear();
-			LCD_writeUINT32(it);
+			LCD_writeUINT32((uint32_t)(0.5f + (float32_t)F_ADC/2.0f/128.0f*(float32_t)it));
+			LCD_writeString("Hz");
 			LCD_goto(0, 1);
 			if(it != 128 && it != 0)LCD_writeUINT32((uint32_t)(
 						2.0f*output[it]*4096.0f/256.0f));
@@ -106,31 +64,13 @@ void present_results(){
 	}
 }
 
-void TIM3_IRQHandler(){
-	if(TIM3->SR & TIM_SR_UIF){
+void TIM2_IRQHandler(){
+	if(TIM2->SR & TIM_SR_UIF){
 		FFT();
-		TIM3->SR &= ~TIM_SR_UIF;
+		TIM2->SR &= ~TIM_SR_UIF;
 	}
 }
 
-void NVIC_prioritySet(){
-	uint32_t encoded_priority;
-	uint32_t adc, systick, fft;
-	fft = 0;
-	adc = 1;
-	systick = 2;
-	/*0 priority groups*/
-	NVIC_SetPriorityGrouping(0);
-	/*ADC priority*/
-	encoded_priority = NVIC_EncodePriority(0, adc, 0);
-	NVIC_SetPriority((IRQn_Type)18, encoded_priority);
-	/*SysTick priority*/
-	encoded_priority = NVIC_EncodePriority(0, systick, 0);
-	NVIC_SetPriority((IRQn_Type)-1, encoded_priority);
-	/*FFT priority*/
-	encoded_priority = NVIC_EncodePriority(0, fft, 0);
-	NVIC_SetPriority((IRQn_Type)TIM3_INTR_NO, encoded_priority);
-}
 void generate_cos(uint16_t freq, uint16_t amplitude, uint16_t offset, uint16_t phase){
 	float32_t time = 0.0f;
 	glob_cos.cnt = (uint16_t)((float32_t)F_DAC/(float32_t)freq + 0.5f);
@@ -159,11 +99,12 @@ int main(void){
 	delay_init();
 	RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;
 	NVIC_prioritySet();
-	generate_cos(15000, 250, 1000, 0);
+	generate_cos(2500, 250, 1000, 0);
 	LCD_init();	
 	ADC_init();
 	DAC_init();
 	TIM6_init(glob_cos.cnt, glob_cos.cos_val);
+	TIM2_init();
 	TIM3_init();
 	while(1){
 		present_results();

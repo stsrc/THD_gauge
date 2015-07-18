@@ -9,14 +9,21 @@ void ADC_init(){
 	/*enabling clock source for ADC and GPIOC*/
 	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN | RCC_APB2ENR_IOPCEN;
 	/*setting ADC preslacer to PLCK divided by 2 (24MHz/2)*/
-	RCC->CFGR &= RCC_CFGR_ADCPRE;
+	RCC->CFGR &= ~RCC_CFGR_ADCPRE;
 	/*reseting PC3 to input - analog mode*/
 	GPIOC->CRL &= ~GPIO_CRL_MODE3;
 	/*enabling end of conv. interrupt*/
 	ADC1->CR1 |= ADC_CR1_EOCIE;
 	NVIC_EnableIRQ((IRQn_Type)ADC_INTR_NO);
-	/*ADC continous work*/
-	ADC1->CR2 |= ADC_CR2_CONT;
+	/*Discontinous mode channel count = 1*/
+	ADC1->CR1 &= ~ADC_CR1_DISCNUM;
+	/*Discontinous mode on regulary channel enabled*/
+	ADC1->CR1 |= ADC_CR1_DISCEN;
+	/*External trigger conversion mode for regular channels*/
+	ADC1->CR2 |= ADC_CR2_EXTTRIG; //TODO ARE YOU SURE? TODO
+	/*External event select for regular group: TIM3 TRGO event*/
+	ADC1->CR2 &= ~ADC_CR2_EXTSEL;
+	ADC1->CR2 |= ADC_CR2_EXTSEL_2;
 	/*Alignment to right*/
 	ADC1->CR2 &= ~(ADC_CR2_ALIGN); 
 	/*sample time = 239.5 cycles*/
