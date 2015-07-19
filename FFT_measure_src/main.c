@@ -14,7 +14,7 @@
 #define F_DAC 100000U
 #define F_ADC 10000.0f
 
-#define FFT_SIZE 256 //DANGER, you should also change const struct in FFT();
+#define FFT_SIZE 256 //WARNING, you should also change const struct in FFT()
 
 extern __IO uint16_t ADC_result[FFT_SIZE];
 
@@ -61,11 +61,11 @@ uint32_t get_max_bar(float32_t *tab, uint32_t FFT_size){
 	return bin_no;
 }	
 
-float32_t calculate_THD(float32_t *tab, uint32_t FFT_size, uint32_t fundamental_it){
+float32_t calculate_THD(float32_t *tab, uint16_t FFT_size, uint16_t fundamental_it){
 	float32_t *temp;
 	float32_t rt;
 	temp = malloc(sizeof(float32_t)*(FFT_size/2)/fundamental_it);
-	for(uint32_t it = 2; it*fundamental_it <= FFT_size/2; it++){
+	for(uint16_t it = 2; it*fundamental_it <= FFT_size/2; it++){
 		temp[it - 2] = tab[it*fundamental_it];
 	}
 	arm_rms_f32(temp, FFT_size/2/fundamental_it, &rt);
@@ -73,41 +73,38 @@ float32_t calculate_THD(float32_t *tab, uint32_t FFT_size, uint32_t fundamental_
 	return rt/tab[fundamental_it];
 }
 
-float32_t calculate_frequency(uint32_t tab_no, uint32_t FFT_size, uint32_t ADC_freq){
+float32_t calculate_frequency(uint16_t tab_no, uint16_t FFT_size, uint32_t ADC_freq){
 	float32_t rt = (float32_t)ADC_freq/2.0f;
 	rt = rt/((float32_t)FFT_size / 2.0f);
 	rt = rt*(float32_t)tab_no;
 	return rt;
 }
 
-float32_t calculate_dB(float32_t val, float32_t fft_size){
-	return log10f(val/fft_size);
+float32_t calculate_dB(float32_t val, float32_t ref_level){
+	return 20.0f*log10f(val/ref_level);
 }
 
 void present_results(){
 	float32_t THD;
-	uint32_t fundamental_it, frequency;
+	uint16_t fundamental_it;
+	uint32_t frequency;
 	if(!results_ready) return;
 	fundamental_it = get_max_bar(output, FFT_SIZE);
 	THD = calculate_THD(output, FFT_SIZE, fundamental_it);
-	frequency = (uint32_t)calculate_frequency(fundamental_it, FFT_SIZE, F_ADC);
+	frequency = (uint32_t)(calculate_frequency(fundamental_it, FFT_SIZE, F_ADC) + 0.5f);
 	LCD_clear();
 	LCD_writeString("THD = ");
 	LCD_writeFLOAT(THD);
 	LCD_goto(0, 1);
 	LCD_writeUINT32(frequency);
 	LCD_writeString("Hz: ");
-	LCD_writeFLOAT(calculate_dB(output[fundamental_it], (float32_t)FFT_SIZE));
+	if(fundamental_it != FFT_SIZE/2) LCD_writeFLOAT(calculate_dB(2*output[fundamental_it]*4095.0f/(float32_t)FFT_SIZE, 4095.0f));
+	else LCD_writeFLOAT(calculate_dB(output[fundamental_it]*4095.0f/(float32_t)FFT_SIZE, 4095.0f));
 	LCD_writeString("dB");
 	results_ready = 0;
 }
 
-void TIM2_IRQHandler(){
-	if(TIM2->SR & TIM_SR_UIF){
-		if(!results_ready) FFT();
-		TIM2->SR &= ~TIM_SR_UIF;
-	}
-}
+
 
 void generate_cos(uint16_t freq, uint16_t amplitude, uint16_t offset, uint16_t phase){
 	float32_t time = 0.0f;
@@ -133,11 +130,19 @@ uint8_t check_DAC_DMA_errflags(){
 	}
 	return 0;
 }
+
+void TIM2_IRQHandler(){
+	if(TIM2->SR & TIM_SR_UIF){
+		if(!results_ready) FFT();
+		TIM2->SR &= ~TIM_SR_UIF;
+	}
+}
+
 int main(void){
 	NVIC_prioritySet();
 	delay_init();	
 	LCD_init();	
-	generate_cos(4759, 250, 1000, 0);
+	generate_cos(500, 250, 1000, 0);
 	ADC_init();
 	DAC_init();
 	TIM6_init(glob_cos.cnt, glob_cos.cos_val);

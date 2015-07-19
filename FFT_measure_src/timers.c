@@ -82,3 +82,5 @@ void NVIC_prioritySet(){
 	encoded_priority = NVIC_EncodePriority(0, fft, 0);
 	NVIC_SetPriority((IRQn_Type)TIM2_INTR_NO, encoded_priority);
 }
+
+
