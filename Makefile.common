@@ -34,17 +34,20 @@ LDSCRIPT=$(CORE)/STM32F100XB_FLASH.ld
 STARTUP=startup_stm32f100xb.o system_stm32f1xx.o 
 PTYPE=STM32F10X_MD_VL
 MTYPE=ARM_MATH_CM3
-# Compilation Flags
 
+# File special definitions
+LCD=HD_FLOAT
+
+# Compilation Flags
 LDFLAGS+= -T$(LDSCRIPT) -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
-LDFLAGS+= -D$(MTYPE) -specs=nosys.specs 
+LDFLAGS+= -D$(MTYPE) -specs=nosys.specs -D$(LCD)
 LDFLAGS+= -L$(LIB)
 LDFLAGS+= -Wall -Wl,-gc-sections,-u,main
 CFLAGS+= -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 CFLAGS+= -Os -g3 -Wall -std=gnu99 
 CFLAGS+= -fdata-sections
 CFLAGS+= -I$(CORE) -I$(INCLUDE) -I.
-CFLAGS+= -D$(PTYPE) -D$(MTYPE)
+CFLAGS+= -D$(PTYPE) -D$(MTYPE) -D$(LCD)
 # Build executable
 
 $(ELF) : $(OBJS)

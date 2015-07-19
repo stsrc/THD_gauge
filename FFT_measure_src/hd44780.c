@@ -150,7 +150,7 @@ void LCD_writeUINT32(uint32_t value){
 void LCD_writeFLOAT(float value){
 	char buf[10];
 	if(value >= 1000000000.0) goto print_err;	
-	if(sprintf(buf, "%.3f", value) <= 0) goto print_err;
+	if(sprintf(buf, "%.2f", value) <= 0) goto print_err;
 	LCD_writeString(buf);
 	return;
 	print_err:
