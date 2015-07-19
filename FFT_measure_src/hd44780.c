@@ -86,8 +86,6 @@ void LCD_clear(){
 	LCD_send_command(0x01);
 }
 
-
-
 void LCD_goto(uint8_t x, uint8_t y){
 	uint8_t cmd = 0x80;
 	uint8_t temp = 0;
