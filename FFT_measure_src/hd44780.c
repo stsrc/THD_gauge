@@ -168,7 +168,7 @@ void LCD_writeFLOAT(float value){
 	return;
 	print_err:
 		LCD_writeString("ERR!\0");
-		return;	
+		return;
 }
 #endif
 
