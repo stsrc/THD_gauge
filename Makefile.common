@@ -1,39 +1,44 @@
 # name of executable
 
-ELF=$(notdir $(CURDIR)).elf                    
-
-# Tool path
-
-TOOLROOT=/home/konrad/Programming/eb/arm_toolchain/gcc-arm-none-eabi-4_9-2015q2/bin
+ELF=$(notdir $(CURDIR)).elf
 
 # Libroot path
 
-LIBROOT=/home/konrad/Programming/eb/CMSIS
+LIBROOT=/home/kgotfryd/programming/workspace/stm32cube/STM32CubeF1-1.8.0/Drivers/
 
 # Tools
 
-CC=$(TOOLROOT)/arm-none-eabi-gcc
-LD=$(TOOLROOT)/arm-none-eabi-gcc
-AR=$(TOOLROOT)/arm-none-eabi-ar
-AS=$(TOOLROOT)/arm-none-eabi-as
+CC=arm-none-eabi-gcc
+LD=arm-none-eabi-gcc
+AR=arm-none-eabi-ar
+AS=arm-none-eabi-as
 
 # Library paths
 
-INCLUDE=$(LIBROOT)/Include
-CORE=$(LIBROOT)/CORE
-LIB=$(LIBROOT)/lib
-
+INCLUDE=$(LIBROOT)/CMSIS/Device/ST/STM32F1xx/Include/
+CORE=$(LIBROOT)/CMSIS/Device/ST/STM32F1xx/Source/Templates/
+INCLUDE_CORE=$(LIBROOT)/CMSIS/Core/Include/
+INCLUDE_MATH=$(LIBROOT)/CMSIS/DSP/Include/
+MATH_PREFIX=$(LIBROOT)/CMSIS/DSP/Source
+MATH=$(MATH_PREFIX)/FastMathFunctions $(MATH_PREFIX)/TransformFunctions $(MATH_PREFIX)/ComplexMathFunctions $(MATH_PREFIX)/CommonTables \
+     $(MATH_PREFIX)/TransformFunctions $(MATH_PREFIX)/StatisticsFunctions $(MATH_PREFIX)/CommonTables
 # Search path for core files
 
 vpath %.c $(CORE)
-vpath %.s $(CORE)
+vpath %.s $(CORE)/gcc
+vpath %.c $(MATH)
+vpath %.S $(MATH)
 
 #  Processor specific
 #
-LDSCRIPT=$(CORE)/STM32F100XB_FLASH.ld
-STARTUP=startup_stm32f100xb.o system_stm32f1xx.o 
+LDSCRIPT=$(CORE)/gcc/linker/STM32F100XB_FLASH.ld
+STARTUP=startup_stm32f100xb.o system_stm32f1xx.o
+ARM_MATH=arm_cos_f32.o arm_cfft_f32.o arm_cmplx_mag_f32.o arm_const_structs.o arm_max_f32.o arm_rms_f32.o arm_common_tables.o arm_cfft_radix8_f32.o \
+	 arm_bitreversal2.o
+
 PTYPE=STM32F10X_MD_VL
 MTYPE=ARM_MATH_CM3
+DEVICE=STM32F100xB
 
 # File special definitions
 LCD=HD_FLOAT
@@ -41,17 +46,16 @@ LCD=HD_FLOAT
 # Compilation Flags
 LDFLAGS+= -T$(LDSCRIPT) -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 LDFLAGS+= -D$(MTYPE) -specs=nosys.specs -D$(LCD)
-LDFLAGS+= -L$(LIB)
 LDFLAGS+= -Wall -Wl,-gc-sections,-u,main
 CFLAGS+= -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
-CFLAGS+= -Os -g3 -Wall -std=gnu99 
+CFLAGS+= -Os -g3 -Wall -std=gnu99
 CFLAGS+= -fdata-sections
-CFLAGS+= -I$(CORE) -I$(INCLUDE) -I.
-CFLAGS+= -D$(PTYPE) -D$(MTYPE) -D$(LCD)
+CFLAGS+= -I$(CORE) -I$(INCLUDE) -I$(INCLUDE_CORE) -I$(INCLUDE_MATH) -I.
+CFLAGS+= -D$(PTYPE) -D$(MTYPE) -D$(LCD) -D$(DEVICE)
 # Build executable
 
 $(ELF) : $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS)  $(LDLIBS) -larm_cm3_DSP -lm
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)  $(LDLIBS) -lm
 
 # compile and generate dependency info
 
